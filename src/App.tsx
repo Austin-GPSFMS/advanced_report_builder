@@ -17,7 +17,7 @@ import type {
   ReportResult,
 } from "./types";
 import { fetchGroups, friendlyError } from "./api/geotab";
-import { FIELD_REGISTRY, getOptionalFields, getRequiredFields, lookupField } from "./registry/fields";
+import { FIELD_REGISTRY, getOptionalFields, getRequiredFields } from "./registry/fields";
 import { applyDatePreset, computeBuckets, isoDateOnly, parseDate, type DatePreset, type SubPeriod } from "./utils/dates";
 import { buildReport } from "./utils/build";
 
