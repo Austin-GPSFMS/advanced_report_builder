@@ -1,16 +1,19 @@
 /**
- * Phase 2B.2 App — Zenith Banner / Button / Card / DateRange / Dropdown wired in
- * for a fully native MyGeotab feel. Behavior parity with Phase 2A unchanged.
+ * Phase 2B.3 App — drag-and-drop column picker layered on top of the
+ * Zenith filter bar from 2B.2. Field selection is now an ORDERED list
+ * (string[]) instead of a Set — report column order comes straight
+ * from the user's drag-and-drop arrangement.
  *
  *   Banner    → @geotab/zenith
  *   Button    → @geotab/zenith
  *   Card      → @geotab/zenith (with Content subcomponent)
- *   DateRange → @geotab/zenith (replaces Quick range + From + To)
- *   Dropdown  → @geotab/zenith (Sub-periods / Run by / Archived)
- *   GroupsFilter → @geotab/zenith (via ./components/GroupFilterPicker — done in 2B.1)
+ *   DateRange → @geotab/zenith
+ *   Dropdown  → @geotab/zenith
+ *   GroupsFilter → @geotab/zenith (via ./components/GroupFilterPicker)
+ *   Columns   → dnd-kit drag-and-drop palette + drop zone (2B.3)
  */
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Banner,
   Button,
@@ -41,6 +44,7 @@ import { FIELD_REGISTRY, getOptionalFields, getRequiredFields } from "./registry
 import { computeBuckets, type SubPeriod } from "./utils/dates";
 import { buildReport } from "./utils/build";
 import { GroupFilterPicker } from "./components/GroupFilterPicker";
+import { DragDropFieldPicker } from "./components/DragDropFieldPicker";
 
 interface AppProps {
   api: GeotabApi | null;
@@ -114,10 +118,12 @@ export default function App({ api, pageState }: AppProps) {
   const [runBy, setRunBy] = useState<"individual" | "group">("individual");
   const [includeArchived, setIncludeArchived] = useState(false);
 
-  // --- Field selection ---
-  const [selected, setSelected] = useState<Set<string>>(
-    () => new Set(["name", "vin", "licensePlate"])
-  );
+  // --- Field selection (ordered — column order in the report = this list) ---
+  const [selectedFieldIds, setSelectedFieldIds] = useState<string[]>([
+    "name",
+    "vin",
+    "licensePlate",
+  ]);
 
   // --- Build state ---
   const [isBuilding, setIsBuilding] = useState(false);
@@ -133,15 +139,6 @@ export default function App({ api, pageState }: AppProps) {
       })
       .catch((err) => setGroupsErr(friendlyError(err)));
   }, [api]);
-
-  function toggleField(id: string) {
-    setSelected((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  }
 
   async function onBuild() {
     if (!api) return;
@@ -164,7 +161,7 @@ export default function App({ api, pageState }: AppProps) {
       const r = await buildReport({
         api,
         ctx,
-        selectedFieldIds: Array.from(selected),
+        selectedFieldIds,
       });
       setResult(r);
     } catch (err) {
@@ -173,18 +170,6 @@ export default function App({ api, pageState }: AppProps) {
       setIsBuilding(false);
     }
   }
-
-  const fieldsByCategory = useMemo(() => {
-    const map = new Map<string, typeof FIELD_REGISTRY>();
-    for (const f of getOptionalFields()) {
-      if (!map.has(f.category)) map.set(f.category, []);
-      map.get(f.category)!.push(f);
-    }
-    return map;
-  }, []);
-
-  const order = ["Vehicle Info", "Lifecycle", "Groups", "Live Status", "Measurements", "Exception Rules"];
-  const orderedCats = order.filter((c) => fieldsByCategory.has(c));
 
   const onDropdownChange =
     <T extends string>(setter: (v: T) => void) =>
@@ -202,7 +187,7 @@ export default function App({ api, pageState }: AppProps) {
         <div>
           <h1 style={{ margin: 0, color: COLORS.navy, fontSize: 22 }}>Advanced Report Builder</h1>
           <p style={{ margin: "4px 0 0", color: "#5b6976", fontSize: 12 }}>
-            v2.0 · Phase 2B.2 native Zenith UI
+            v2.0 · Phase 2B.3 drag-and-drop columns
           </p>
         </div>
         <Button
@@ -298,65 +283,15 @@ export default function App({ api, pageState }: AppProps) {
         </Content>
       </Card>
 
-      {/* Field selection */}
+      {/* Field selection — drag-and-drop palette + drop zone */}
       <Card title="Columns" fullWidth>
         <Content>
-          <div style={{ fontSize: 11, color: "#6b7785", marginBottom: 8 }}>
-            Device ID and Geotab Serial are always included. Check additional fields below.
-          </div>
-          {orderedCats.map((cat) => (
-            <details key={cat} open={cat !== "Exception Rules"} style={{ marginBottom: 8 }}>
-              <summary
-                style={{
-                  cursor: "pointer",
-                  fontWeight: 700,
-                  color: COLORS.navy,
-                  fontSize: 12,
-                  textTransform: "uppercase",
-                  letterSpacing: 0.4,
-                }}
-              >
-                {cat}{" "}
-                <span style={{ color: "#6b7785", fontWeight: 400 }}>
-                  ({fieldsByCategory.get(cat)!.length})
-                </span>
-              </summary>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 8, padding: "8px 0 0 0" }}>
-                {fieldsByCategory.get(cat)!.map((f) => (
-                  <label
-                    key={f.id}
-                    style={{
-                      display: "inline-flex",
-                      alignItems: "center",
-                      gap: 6,
-                      fontSize: 12,
-                      padding: "4px 10px",
-                      border: `1px solid ${COLORS.border}`,
-                      borderRadius: 14,
-                      cursor: "pointer",
-                      background: selected.has(f.id) ? "#E5F1F8" : "#FFFFFF",
-                      color: selected.has(f.id) ? COLORS.navy : COLORS.dark,
-                      fontWeight: selected.has(f.id) ? 600 : 400,
-                    }}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={selected.has(f.id)}
-                      onChange={() => toggleField(f.id)}
-                      style={{ margin: 0 }}
-                    />
-                    {f.label}
-                    {f.needsDateRange && (
-                      <span style={{ color: "#2E7D32", fontSize: 9 }}>· date</span>
-                    )}
-                  </label>
-                ))}
-              </div>
-            </details>
-          ))}
-          <div style={{ fontSize: 11, color: "#6b7785", marginTop: 12 }}>
-            Always included: {getRequiredFields().map((f) => f.label).join(", ")}
-          </div>
+          <DragDropFieldPicker
+            availableFields={getOptionalFields()}
+            requiredFields={getRequiredFields()}
+            selectedFieldIds={selectedFieldIds}
+            onChange={setSelectedFieldIds}
+          />
         </Content>
       </Card>
 
