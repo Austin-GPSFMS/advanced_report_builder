@@ -188,7 +188,7 @@ export default function App({ api, pageState }: AppProps) {
         <div>
           <h1 style={{ margin: 0, color: COLORS.navy, fontSize: 22 }}>Advanced Report Builder</h1>
           <p style={{ margin: "4px 0 0", color: "#5b6976", fontSize: 12 }}>
-            v2.0 · Phase 2B.4 Zenith Table results
+            v2.0 · Phase 2B.4.1 polished filter bar
           </p>
         </div>
         <Button
@@ -218,11 +218,12 @@ export default function App({ api, pageState }: AppProps) {
         )}
       </div>
 
-      {/* Filter bar */}
+      {/* Filter bar — Group on its own row (Zenith's GroupsFilter is a tall
+          chip-based picker), four smaller controls in a tidy grid below. */}
       <Card title="Filters" fullWidth>
         <Content>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 16, alignItems: "flex-end" }}>
-            <div style={{ minWidth: 220 }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            <div>
               <label style={labelStyle}>Group</label>
               {groupsLoaded ? (
                 <GroupFilterPicker
@@ -235,50 +236,60 @@ export default function App({ api, pageState }: AppProps) {
                 <div style={{ color: "#6b7785", fontStyle: "italic", fontSize: 13 }}>Loading groups…</div>
               )}
             </div>
-            <div>
-              <label style={labelStyle}>Date range</label>
-              <DateRange
-                options={dateRangeOptions}
-                value={dateRange}
-                defaultValue={dateRange}
-                onChange={(v: IDateRangeValue) => setDateRange(v)}
-              />
-            </div>
-            <div style={{ minWidth: 180 }}>
-              <label style={labelStyle}>Sub-periods</label>
-              <Dropdown
-                value={[subPeriod]}
-                dataItems={subPeriodItems}
-                onChange={onDropdownChange<SubPeriod>(setSubPeriod)}
-                errorHandler={(e) => console.error("[ARB] Sub-period:", e)}
-                forceSelection
-                placeholder="None"
-              />
-            </div>
-            <div style={{ minWidth: 160 }}>
-              <label style={labelStyle}>Run by</label>
-              <Dropdown
-                value={[runBy]}
-                dataItems={runByItems}
-                onChange={onDropdownChange<"individual" | "group">(setRunBy)}
-                errorHandler={(e) => console.error("[ARB] Run by:", e)}
-                forceSelection
-                placeholder="Individual"
-              />
-            </div>
-            <div style={{ minWidth: 140 }}>
-              <label style={labelStyle}>Archived</label>
-              <Dropdown
-                value={[includeArchived ? "include" : "exclude"]}
-                dataItems={archivedItems}
-                onChange={(items: ISelectionItem[]) => {
-                  const id = items[0]?.id;
-                  setIncludeArchived(id === "include");
-                }}
-                errorHandler={(e) => console.error("[ARB] Archived:", e)}
-                forceSelection
-                placeholder="Exclude"
-              />
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "minmax(220px, 1fr) minmax(180px, 1fr) minmax(160px, 1fr) minmax(140px, 1fr)",
+                gap: 16,
+                alignItems: "start",
+              }}
+            >
+              <div>
+                <label style={labelStyle}>Date range</label>
+                <DateRange
+                  options={dateRangeOptions}
+                  value={dateRange}
+                  defaultValue={dateRange}
+                  onChange={(v: IDateRangeValue) => setDateRange(v)}
+                  withCalendar
+                />
+              </div>
+              <div>
+                <label style={labelStyle}>Sub-periods</label>
+                <Dropdown
+                  value={[subPeriod]}
+                  dataItems={subPeriodItems}
+                  onChange={onDropdownChange<SubPeriod>(setSubPeriod)}
+                  errorHandler={(e) => console.error("[ARB] Sub-period:", e)}
+                  forceSelection
+                  placeholder="None"
+                />
+              </div>
+              <div>
+                <label style={labelStyle}>Run by</label>
+                <Dropdown
+                  value={[runBy]}
+                  dataItems={runByItems}
+                  onChange={onDropdownChange<"individual" | "group">(setRunBy)}
+                  errorHandler={(e) => console.error("[ARB] Run by:", e)}
+                  forceSelection
+                  placeholder="Individual"
+                />
+              </div>
+              <div>
+                <label style={labelStyle}>Archived</label>
+                <Dropdown
+                  value={[includeArchived ? "include" : "exclude"]}
+                  dataItems={archivedItems}
+                  onChange={(items: ISelectionItem[]) => {
+                    const id = items[0]?.id;
+                    setIncludeArchived(id === "include");
+                  }}
+                  errorHandler={(e) => console.error("[ARB] Archived:", e)}
+                  forceSelection
+                  placeholder="Exclude"
+                />
+              </div>
             </div>
           </div>
         </Content>
