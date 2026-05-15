@@ -93,19 +93,67 @@ export interface GeotabCustomProperty {
   dataType?: string;
 }
 
+/**
+ * Fetch the universe of Custom Property definitions to surface as
+ * draggable field cards. Two strategies, tried in order:
+ *
+ *   1. Get<CustomProperty> — works on databases where Geotab exposes the
+ *      property definitions as their own type.
+ *   2. Get<Device> sample, then derive unique property names from each
+ *      device.propertyValues entry. Geotab always returns these inline
+ *      on Device records, so this fallback is the safety net.
+ */
 export async function fetchCustomProperties(api: GeotabApi): Promise<GeotabCustomProperty[]> {
+  const sortByName = (list: GeotabCustomProperty[]) =>
+    list.slice().sort((a, b) => {
+      const an = (a.name ?? a.id).toLowerCase();
+      const bn = (b.name ?? b.id).toLowerCase();
+      return an.localeCompare(bn);
+    });
+
+  // Strategy 1: explicit CustomProperty typeName.
   try {
     const props = await apiCall<GeotabCustomProperty[]>(api, "Get", {
       typeName: "CustomProperty",
       resultsLimit: 5000,
     });
-    return props.slice().sort((a, b) => {
-      const an = (a.name ?? a.id).toLowerCase();
-      const bn = (b.name ?? b.id).toLowerCase();
-      return an.localeCompare(bn);
-    });
+    if (Array.isArray(props) && props.length > 0) {
+      console.log("[ARB] Loaded", props.length, "custom properties via Get<CustomProperty>");
+      return sortByName(props);
+    }
+    console.log("[ARB] Get<CustomProperty> returned 0 items — falling back to device-derived");
   } catch (err) {
-    console.warn("[ARB] fetchCustomProperties failed:", err);
+    console.warn("[ARB] Get<CustomProperty> failed; falling back to device-derived:", err);
+  }
+
+  // Strategy 2: derive from device.propertyValues.
+  try {
+    interface DeviceLite {
+      propertyValues?: Array<{ property?: { id?: string; name?: string } }>;
+    }
+    const devices = await apiCall<DeviceLite[]>(api, "Get", {
+      typeName: "Device",
+      resultsLimit: 1000,
+    });
+    const byKey = new Map<string, GeotabCustomProperty>();
+    for (const d of devices) {
+      const pvs = d.propertyValues ?? [];
+      for (const pv of pvs) {
+        const id = pv.property?.id ?? "";
+        const name = pv.property?.name ?? "";
+        // Key by id when present, otherwise by name; skip entries without either.
+        const key = id || name;
+        if (!key) continue;
+        if (!byKey.has(key)) {
+          byKey.set(key, { id: id || name, name });
+        }
+      }
+    }
+    const list = sortByName(Array.from(byKey.values()));
+    console.log("[ARB] Derived", list.length, "custom properties from device.propertyValues");
+    return list;
+  } catch (err) {
+    console.warn("[ARB] Device-derived custom property fallback failed:", err);
     return [];
   }
 }
