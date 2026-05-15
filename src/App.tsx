@@ -1,16 +1,23 @@
 /**
- * Phase 2B.3 App — drag-and-drop column picker layered on top of the
- * Zenith filter bar from 2B.2. Field selection is now an ORDERED list
- * (string[]) instead of a Set — report column order comes straight
- * from the user's drag-and-drop arrangement.
+ * Phase 2B.4.3 App — native MyGeotab toolbar pattern.
+ *
+ * No Filters card, no labels above each control. Group / Date range /
+ * Sub-period / Run by / Archived sit in one compact horizontal row
+ * directly under the page header, exactly like MyGeotab's Assets,
+ * Users & Drivers, and Maintenance Overview pages.
+ *
+ * Each dropdown's items embed their meaning (e.g. "Sub-period: Daily")
+ * so the dropdown's trigger button is self-describing without needing
+ * a separate label above it.
  *
  *   Banner    → @geotab/zenith
  *   Button    → @geotab/zenith
- *   Card      → @geotab/zenith (with Content subcomponent)
- *   DateRange → @geotab/zenith
+ *   Card      → @geotab/zenith (Columns + Results only)
+ *   DateRange → @geotab/zenith (withCalendar)
  *   Dropdown  → @geotab/zenith
  *   GroupsFilter → @geotab/zenith (via ./components/GroupFilterPicker)
  *   Columns   → dnd-kit drag-and-drop palette + drop zone (2B.3)
+ *   Results   → Zenith Table (sortable + flexible columns, 2B.4)
  */
 
 import { useEffect, useState } from "react";
@@ -54,39 +61,26 @@ interface AppProps {
 
 const COLORS = {
   navy: "#25477B",
-  blue: "#0084C2",
-  dark: "#1C2B39",
-  light: "#F4F4F4",
-  border: "#D8DEE5",
 };
 
-const labelStyle: React.CSSProperties = {
-  fontSize: 11,
-  textTransform: "uppercase",
-  letterSpacing: 0.4,
-  color: COLORS.blue,
-  fontWeight: 600,
-  marginBottom: 4,
-  display: "block",
-};
-
-// Sub-period / Run-by / Archived dropdown options.
+// Dropdown items — each name includes the meaning so the trigger button
+// reads as a complete sentence (e.g. "Sub-period: Daily").
 const subPeriodItems = [
-  { id: "none", name: "None (totals only)" },
-  { id: "daily", name: "Daily" },
-  { id: "weekly", name: "Weekly" },
-  { id: "monthly", name: "Monthly" },
+  { id: "none", name: "Sub-period: None" },
+  { id: "daily", name: "Sub-period: Daily" },
+  { id: "weekly", name: "Sub-period: Weekly" },
+  { id: "monthly", name: "Sub-period: Monthly" },
 ];
 const runByItems = [
-  { id: "individual", name: "Individual" },
-  { id: "group", name: "Per Group" },
+  { id: "individual", name: "Run by: Individual" },
+  { id: "group", name: "Run by: Per group" },
 ];
 const archivedItems = [
-  { id: "exclude", name: "Exclude" },
-  { id: "include", name: "Include" },
+  { id: "exclude", name: "Archived: Excluded" },
+  { id: "include", name: "Archived: Included" },
 ];
 
-// Date range presets we expose in the DateRange popup.
+// Date range presets shown inside the DateRange popup.
 const dateRangeOptions = [
   GET_TODAY_OPTION(),
   GET_YESTERDAY_OPTION(),
@@ -112,14 +106,14 @@ export default function App({ api, pageState }: AppProps) {
   const [groupsLoaded, setGroupsLoaded] = useState(false);
   const [groupsErr, setGroupsErr] = useState<string | null>(null);
 
-  // --- Filter bar state ---
+  // --- Toolbar state ---
   const [selectedGroupIds, setSelectedGroupIds] = useState<string[]>(["GroupCompanyId"]);
   const [dateRange, setDateRange] = useState<IDateRangeValue>(() => defaultDateRange());
   const [subPeriod, setSubPeriod] = useState<SubPeriod>("none");
   const [runBy, setRunBy] = useState<"individual" | "group">("individual");
   const [includeArchived, setIncludeArchived] = useState(false);
 
-  // --- Field selection (ordered — column order in the report = this list) ---
+  // --- Field selection (ordered — column order = this list) ---
   const [selectedFieldIds, setSelectedFieldIds] = useState<string[]>([
     "name",
     "vin",
@@ -159,11 +153,7 @@ export default function App({ api, pageState }: AppProps) {
         runBy,
         groupsById,
       };
-      const r = await buildReport({
-        api,
-        ctx,
-        selectedFieldIds,
-      });
+      const r = await buildReport({ api, ctx, selectedFieldIds });
       setResult(r);
     } catch (err) {
       setBuildErr(friendlyError(err));
@@ -183,12 +173,18 @@ export default function App({ api, pageState }: AppProps) {
     <div className="arb-page">
       <header
         className="arb-page-header"
-        style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 16 }}
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          gap: 16,
+          marginBottom: 12,
+        }}
       >
         <div>
           <h1 style={{ margin: 0, color: COLORS.navy, fontSize: 22 }}>Advanced Report Builder</h1>
           <p style={{ margin: "4px 0 0", color: "#5b6976", fontSize: 12 }}>
-            v2.0 · Phase 2B.4.2 compact filter row
+            v2.0 · Phase 2B.4.3 native toolbar
           </p>
         </div>
         <Button
@@ -200,7 +196,64 @@ export default function App({ api, pageState }: AppProps) {
         </Button>
       </header>
 
-      <div className="arb-banner-stack" style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+      {/* Native MyGeotab toolbar — single compact row, no labels, no card */}
+      <div
+        className="arb-toolbar"
+        style={{
+          display: "flex",
+          flexWrap: "wrap",
+          gap: 8,
+          alignItems: "center",
+          marginBottom: 16,
+        }}
+      >
+        {groupsLoaded ? (
+          <GroupFilterPicker
+            groupsById={groupsById}
+            initialGroupIds={selectedGroupIds}
+            onChange={setSelectedGroupIds}
+            onError={(e) => setBuildErr(friendlyError(e))}
+          />
+        ) : (
+          <div style={{ color: "#6b7785", fontStyle: "italic", fontSize: 13 }}>Loading groups…</div>
+        )}
+        <DateRange
+          options={dateRangeOptions}
+          value={dateRange}
+          defaultValue={dateRange}
+          onChange={(v: IDateRangeValue) => setDateRange(v)}
+          withCalendar
+        />
+        <Dropdown
+          value={[subPeriod]}
+          dataItems={subPeriodItems}
+          onChange={onDropdownChange<SubPeriod>(setSubPeriod)}
+          errorHandler={(e) => console.error("[ARB] Sub-period:", e)}
+          forceSelection
+          placeholder="Sub-period"
+        />
+        <Dropdown
+          value={[runBy]}
+          dataItems={runByItems}
+          onChange={onDropdownChange<"individual" | "group">(setRunBy)}
+          errorHandler={(e) => console.error("[ARB] Run by:", e)}
+          forceSelection
+          placeholder="Run by"
+        />
+        <Dropdown
+          value={[includeArchived ? "include" : "exclude"]}
+          dataItems={archivedItems}
+          onChange={(items: ISelectionItem[]) => {
+            const id = items[0]?.id;
+            setIncludeArchived(id === "include");
+          }}
+          errorHandler={(e) => console.error("[ARB] Archived:", e)}
+          forceSelection
+          placeholder="Archived"
+        />
+      </div>
+
+      <div className="arb-banner-stack" style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 12 }}>
         {!insideMyGeotab && (
           <Banner type="info" header="Standalone preview">
             Open this page from inside MyGeotab to test the live integration.
@@ -217,83 +270,6 @@ export default function App({ api, pageState }: AppProps) {
           </Banner>
         )}
       </div>
-
-      {/* Filter bar — Group on its own row (Zenith's GroupsFilter is a tall
-          chip-based picker), four smaller controls in a tidy grid below. */}
-      <Card title="Filters" fullWidth>
-        <Content>
-          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            <div>
-              <label style={labelStyle}>Group</label>
-              {groupsLoaded ? (
-                <GroupFilterPicker
-                  groupsById={groupsById}
-                  initialGroupIds={selectedGroupIds}
-                  onChange={setSelectedGroupIds}
-                  onError={(e) => setBuildErr(friendlyError(e))}
-                />
-              ) : (
-                <div style={{ color: "#6b7785", fontStyle: "italic", fontSize: 13 }}>Loading groups…</div>
-              )}
-            </div>
-            <div
-              style={{
-                display: "flex",
-                flexWrap: "wrap",
-                gap: 16,
-                alignItems: "flex-start",
-              }}
-            >
-              <div style={{ width: 260 }}>
-                <label style={labelStyle}>Date range</label>
-                <DateRange
-                  options={dateRangeOptions}
-                  value={dateRange}
-                  defaultValue={dateRange}
-                  onChange={(v: IDateRangeValue) => setDateRange(v)}
-                  withCalendar
-                />
-              </div>
-              <div style={{ width: 200 }}>
-                <label style={labelStyle}>Sub-periods</label>
-                <Dropdown
-                  value={[subPeriod]}
-                  dataItems={subPeriodItems}
-                  onChange={onDropdownChange<SubPeriod>(setSubPeriod)}
-                  errorHandler={(e) => console.error("[ARB] Sub-period:", e)}
-                  forceSelection
-                  placeholder="None"
-                />
-              </div>
-              <div style={{ width: 180 }}>
-                <label style={labelStyle}>Run by</label>
-                <Dropdown
-                  value={[runBy]}
-                  dataItems={runByItems}
-                  onChange={onDropdownChange<"individual" | "group">(setRunBy)}
-                  errorHandler={(e) => console.error("[ARB] Run by:", e)}
-                  forceSelection
-                  placeholder="Individual"
-                />
-              </div>
-              <div style={{ width: 160 }}>
-                <label style={labelStyle}>Archived</label>
-                <Dropdown
-                  value={[includeArchived ? "include" : "exclude"]}
-                  dataItems={archivedItems}
-                  onChange={(items: ISelectionItem[]) => {
-                    const id = items[0]?.id;
-                    setIncludeArchived(id === "include");
-                  }}
-                  errorHandler={(e) => console.error("[ARB] Archived:", e)}
-                  forceSelection
-                  placeholder="Exclude"
-                />
-              </div>
-            </div>
-          </div>
-        </Content>
-      </Card>
 
       {/* Field selection — drag-and-drop palette + drop zone */}
       <Card title="Columns" fullWidth>
