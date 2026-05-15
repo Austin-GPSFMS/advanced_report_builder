@@ -188,7 +188,7 @@ export default function App({ api, pageState }: AppProps) {
         <div>
           <h1 style={{ margin: 0, color: COLORS.navy, fontSize: 22 }}>Advanced Report Builder</h1>
           <p style={{ margin: "4px 0 0", color: "#5b6976", fontSize: 12 }}>
-            v2.0 · Phase 2B.4.1 polished filter bar
+            v2.0 · Phase 2B.4.2 compact filter row
           </p>
         </div>
         <Button
@@ -238,13 +238,13 @@ export default function App({ api, pageState }: AppProps) {
             </div>
             <div
               style={{
-                display: "grid",
-                gridTemplateColumns: "minmax(220px, 1fr) minmax(180px, 1fr) minmax(160px, 1fr) minmax(140px, 1fr)",
+                display: "flex",
+                flexWrap: "wrap",
                 gap: 16,
-                alignItems: "start",
+                alignItems: "flex-start",
               }}
             >
-              <div>
+              <div style={{ width: 260 }}>
                 <label style={labelStyle}>Date range</label>
                 <DateRange
                   options={dateRangeOptions}
@@ -254,7 +254,7 @@ export default function App({ api, pageState }: AppProps) {
                   withCalendar
                 />
               </div>
-              <div>
+              <div style={{ width: 200 }}>
                 <label style={labelStyle}>Sub-periods</label>
                 <Dropdown
                   value={[subPeriod]}
@@ -265,7 +265,7 @@ export default function App({ api, pageState }: AppProps) {
                   placeholder="None"
                 />
               </div>
-              <div>
+              <div style={{ width: 180 }}>
                 <label style={labelStyle}>Run by</label>
                 <Dropdown
                   value={[runBy]}
@@ -276,7 +276,7 @@ export default function App({ api, pageState }: AppProps) {
                   placeholder="Individual"
                 />
               </div>
-              <div>
+              <div style={{ width: 160 }}>
                 <label style={labelStyle}>Archived</label>
                 <Dropdown
                   value={[includeArchived ? "include" : "exclude"]}
