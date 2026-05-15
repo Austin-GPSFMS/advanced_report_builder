@@ -1,5 +1,5 @@
 /**
- * Phase 2B.5 App — native toolbar + dynamic Rule loading.
+ * Phase 2C.2 App — native toolbar + dynamic Rule loading + ExcelJS export.
  *
  * No Filters card, no labels above each control. Group / Date range /
  * Sub-period / Run by / Archived sit in one compact horizontal row
@@ -51,6 +51,7 @@ import type { FieldDefinition } from "./types";
 import { getAllFields, getOptionalFields, getRequiredFields, setDynamicFields } from "./registry/fields";
 import { computeBuckets, type SubPeriod } from "./utils/dates";
 import { buildReport } from "./utils/build";
+import { exportToXlsx } from "./utils/export";
 import { GroupFilterPicker } from "./components/GroupFilterPicker";
 import { DragDropFieldPicker } from "./components/DragDropFieldPicker";
 import { ResultsTable } from "./components/ResultsTable";
@@ -152,6 +153,7 @@ export default function App({ api, pageState }: AppProps) {
 
   // --- Build state ---
   const [isBuilding, setIsBuilding] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
   const [buildErr, setBuildErr] = useState<string | null>(null);
   const [result, setResult] = useState<ReportResult | null>(null);
 
@@ -206,6 +208,36 @@ export default function App({ api, pageState }: AppProps) {
     }
   }
 
+  async function onExport() {
+    if (!result) return;
+    setIsExporting(true);
+    setBuildErr(null);
+    try {
+      // Reconstruct a BuildContext snapshot from the current toolbar state.
+      // We don't need the full ctx the build used — only the fields export
+      // displays in the metadata sheet.
+      const buckets = computeBuckets(dateRange.from, dateRange.to, subPeriod);
+      const ctx: BuildContext = {
+        groupIds: selectedGroupIds.length > 0 ? selectedGroupIds : ["GroupCompanyId"],
+        fromDate: dateRange.from,
+        toDate: dateRange.to,
+        deviceIds: null,
+        includeArchived,
+        subPeriod,
+        buckets,
+        runBy,
+        groupsById,
+      };
+      const groupNamesById = new Map<string, string>();
+      groupsById.forEach((g, id) => groupNamesById.set(id, g.name ?? id));
+      await exportToXlsx({ result, ctx, selectedFieldIds, groupNamesById });
+    } catch (err) {
+      setBuildErr(friendlyError(err));
+    } finally {
+      setIsExporting(false);
+    }
+  }
+
   const onDropdownChange =
     <T extends string>(setter: (v: T) => void) =>
     (items: ISelectionItem[]) => {
@@ -228,16 +260,25 @@ export default function App({ api, pageState }: AppProps) {
         <div>
           <h1 style={{ margin: 0, color: COLORS.navy, fontSize: 22 }}>Advanced Report Builder</h1>
           <p style={{ margin: "4px 0 0", color: "#5b6976", fontSize: 12 }}>
-            v2.0 · Phase 2B.5 dynamic rules
+            v2.0 · Phase 2C.2 Excel export
           </p>
         </div>
-        <Button
-          type="primary"
-          onClick={onBuild}
-          disabled={!insideMyGeotab || isBuilding || !groupsLoaded}
-        >
-          {isBuilding ? "Building…" : "Build Report"}
-        </Button>
+        <div style={{ display: "flex", gap: 8 }}>
+          <Button
+            type="secondary"
+            onClick={onExport}
+            disabled={!result || isExporting || isBuilding}
+          >
+            {isExporting ? "Exporting…" : "Export to Excel"}
+          </Button>
+          <Button
+            type="primary"
+            onClick={onBuild}
+            disabled={!insideMyGeotab || isBuilding || !groupsLoaded}
+          >
+            {isBuilding ? "Building…" : "Build Report"}
+          </Button>
+        </div>
       </header>
 
       {/* Native MyGeotab toolbar — single compact row, no labels, no card */}
@@ -274,6 +315,7 @@ export default function App({ api, pageState }: AppProps) {
           onChange={onDropdownChange<SubPeriod>(setSubPeriod)}
           errorHandler={(e) => console.error("[ARB] Sub-period:", e)}
           forceSelection
+          multiselect={false}
           placeholder="Sub-period"
         />
         <Dropdown
@@ -282,6 +324,7 @@ export default function App({ api, pageState }: AppProps) {
           onChange={onDropdownChange<"individual" | "group">(setRunBy)}
           errorHandler={(e) => console.error("[ARB] Run by:", e)}
           forceSelection
+          multiselect={false}
           placeholder="Run by"
         />
         <Dropdown
@@ -293,6 +336,7 @@ export default function App({ api, pageState }: AppProps) {
           }}
           errorHandler={(e) => console.error("[ARB] Archived:", e)}
           forceSelection
+          multiselect={false}
           placeholder="Archived"
         />
       </div>
