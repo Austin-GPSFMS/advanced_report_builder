@@ -32,40 +32,32 @@ export interface GroupFilterPickerProps {
   onError?: (e: Error) => void;
 }
 
-/** Build the IGroupItem tree (children nested) from a flat Group map. */
-function buildGroupItemTree(byId: Map<string, GeotabGroup>): IGroupItem[] {
-  // Roots = groups that don't appear as anyone's child.
-  const childIds = new Set<string>();
+/**
+ * Build the IGroupItem[] FLAT array Zenith's GroupsFilter expects.
+ *
+ * Per Zenith's test data shape, this is a single flat list where each item
+ * with descendants has a `children` array of just `{id}` references to OTHER
+ * items in the same array — NOT nested IGroupItem objects. The raw Geotab
+ * API response is already exactly this shape; we just normalize names and
+ * sort Company group first.
+ */
+function buildGroupItemArr(byId: Map<string, GeotabGroup>): IGroupItem[] {
+  const items: IGroupItem[] = [];
   byId.forEach((g) => {
-    g.children?.forEach((c) => childIds.add(c.id));
+    items.push({
+      id: g.id,
+      name: g.name && g.name.length > 0 ? g.name : g.id,
+      children: Array.isArray(g.children) && g.children.length > 0
+        ? g.children.map((c) => ({ id: c.id }))
+        : undefined,
+    });
   });
-
-  const seen = new Set<string>();
-  const toItem = (g: GeotabGroup): IGroupItem => {
-    if (seen.has(g.id)) return { id: g.id, name: g.name };
-    seen.add(g.id);
-    const kids: IGroupItem[] = [];
-    if (Array.isArray(g.children)) {
-      for (const ref of g.children) {
-        const full = byId.get(ref.id);
-        if (full) kids.push(toItem(full));
-      }
-    }
-    return kids.length > 0 ? { id: g.id, name: g.name, children: kids } : { id: g.id, name: g.name };
-  };
-
-  const roots: IGroupItem[] = [];
-  byId.forEach((g) => {
-    if (!childIds.has(g.id)) roots.push(toItem(g));
-  });
-
-  // Company group first, then alphabetical.
-  roots.sort((a, b) => {
+  items.sort((a, b) => {
     if (a.id === "GroupCompanyId") return -1;
     if (b.id === "GroupCompanyId") return 1;
     return (a.name ?? "").localeCompare(b.name ?? "");
   });
-  return roots;
+  return items;
 }
 
 /** Walk an IFilterState recursively and pull out all leaf group IDs. */
@@ -100,7 +92,9 @@ export function GroupFilterPicker({
   });
 
   const dataLoader = useCallback(async (): Promise<IGroupItem[]> => {
-    return buildGroupItemTree(groupsById);
+    const items = buildGroupItemArr(groupsById);
+    console.log("[ARB] GroupsFilter dataLoader returning", items.length, "items, sample:", items.slice(0, 3));
+    return items;
   }, [groupsById]);
 
   const handleChange = useCallback(
