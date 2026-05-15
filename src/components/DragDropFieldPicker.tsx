@@ -78,7 +78,7 @@ export function DragDropFieldPicker({
   requiredFields,
   selectedFieldIds,
   onChange,
-  categoryOrder = ["Vehicle Info", "Lifecycle", "Groups", "Live Status", "Measurements", "Exception Rules"],
+  categoryOrder = ["Vehicle Info", "Lifecycle", "Groups", "Live Status", "Measurements", "Custom Properties", "Exception Rules"],
 }: DragDropFieldPickerProps) {
   // Lookup by id for fast resolution from selectedFieldIds back to definitions.
   const byId = useMemo(() => {

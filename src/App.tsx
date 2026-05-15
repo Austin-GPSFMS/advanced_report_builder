@@ -142,21 +142,30 @@ function customPropertyToField(prop: GeotabCustomProperty): FieldDefinition {
     source: "Device",
     category: "Custom Properties",
     get: (d) => {
-      // Geotab returns custom property values inline on each Device as
-      // device.propertyValues = [{ value, property: { name } }, ...].
-      // Match by property.name since the ref shape doesn't always include id.
-      const list = d.propertyValues ?? [];
-      for (const entry of list) {
-        const refName = entry.property?.name;
-        const refId = entry.property?.id;
-        if ((refName && prop.name && refName === prop.name) || refId === prop.id) {
-          const v = entry.value;
-          if (v == null) return "";
-          if (typeof v === "boolean") return v ? "Yes" : "No";
-          if (typeof v === "object") {
-            try { return JSON.stringify(v); } catch { return String(v); }
+      // Geotab returns custom property values inline on each Device under
+      // `customProperties` (verified via diagnostic scan). Older fields
+      // propertyValues / customParameters checked as fallback in case the
+      // server returns them under a different name.
+      const lookup = d as unknown as Record<string, unknown>;
+      const candidates = [
+        lookup.customProperties,
+        lookup.propertyValues,
+        lookup.customParameters,
+      ];
+      for (const raw of candidates) {
+        if (!Array.isArray(raw)) continue;
+        for (const entry of raw as Array<{ property?: { id?: string; name?: string }; name?: string; value?: unknown }>) {
+          const refName = entry.property?.name ?? entry.name;
+          const refId = entry.property?.id;
+          if ((refName && prop.name && refName === prop.name) || refId === prop.id) {
+            const v = entry.value;
+            if (v == null) return "";
+            if (typeof v === "boolean") return v ? "Yes" : "No";
+            if (typeof v === "object") {
+              try { return JSON.stringify(v); } catch { return String(v); }
+            }
+            return String(v);
           }
-          return String(v);
         }
       }
       return "";
@@ -309,7 +318,7 @@ export default function App({ api, pageState }: AppProps) {
         <div>
           <h1 style={{ margin: 0, color: COLORS.navy, fontSize: 22 }}>Advanced Report Builder</h1>
           <p style={{ margin: "4px 0 0", color: "#5b6976", fontSize: 12 }}>
-            v2.0 · Phase 2D.3 single-device probe + multi-field scan
+            v2.0 · Phase 2D.4 custom properties wired through
           </p>
         </div>
         <div style={{ display: "flex", gap: 8 }}>
