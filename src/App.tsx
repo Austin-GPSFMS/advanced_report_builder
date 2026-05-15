@@ -45,6 +45,7 @@ import { computeBuckets, type SubPeriod } from "./utils/dates";
 import { buildReport } from "./utils/build";
 import { GroupFilterPicker } from "./components/GroupFilterPicker";
 import { DragDropFieldPicker } from "./components/DragDropFieldPicker";
+import { ResultsTable } from "./components/ResultsTable";
 
 interface AppProps {
   api: GeotabApi | null;
@@ -187,7 +188,7 @@ export default function App({ api, pageState }: AppProps) {
         <div>
           <h1 style={{ margin: 0, color: COLORS.navy, fontSize: 22 }}>Advanced Report Builder</h1>
           <p style={{ margin: "4px 0 0", color: "#5b6976", fontSize: 12 }}>
-            v2.0 · Phase 2B.3 drag-and-drop columns
+            v2.0 · Phase 2B.4 Zenith Table results
           </p>
         </div>
         <Button
@@ -295,67 +296,16 @@ export default function App({ api, pageState }: AppProps) {
         </Content>
       </Card>
 
-      {/* Results */}
+      {/* Results — Zenith Table (sortable, sticky header, resizable, column-visibility menu) */}
       {result && (
-        <Card title={`Results · ${result.rows.length} row${result.rows.length === 1 ? "" : "s"} · ${result.runBy === "group" ? "aggregated by group" : "individual vehicles"}`} fullWidth>
+        <Card
+          title={`Results · ${result.rows.length} row${result.rows.length === 1 ? "" : "s"} · ${
+            result.runBy === "group" ? "aggregated by group" : "individual vehicles"
+          }`}
+          fullWidth
+        >
           <Content>
-            <div style={{ maxHeight: "50vh", overflow: "auto" }}>
-              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
-                <thead>
-                  <tr>
-                    {result.columns.map((c) => (
-                      <th
-                        key={c.key}
-                        style={{
-                          background: COLORS.navy,
-                          color: "#FFFFFF",
-                          padding: "8px 12px",
-                          textAlign: "left",
-                          position: "sticky",
-                          top: 0,
-                          whiteSpace: "nowrap",
-                          fontSize: 11,
-                          letterSpacing: 0.3,
-                          fontWeight: 700,
-                        }}
-                      >
-                        {c.label}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {result.rows.map((row, i) => (
-                    <tr
-                      key={String(row._deviceId)}
-                      style={{ background: i % 2 ? COLORS.light : "#FFFFFF" }}
-                    >
-                      {result.columns.map((c) => {
-                        const v = row[c.key];
-                        return (
-                          <td
-                            key={c.key}
-                            style={{
-                              padding: "6px 12px",
-                              borderBottom: "1px solid #eef1f4",
-                              whiteSpace: "nowrap",
-                            }}
-                          >
-                            {v == null || v === ""
-                              ? ""
-                              : Array.isArray(v)
-                              ? v.join(", ")
-                              : typeof v === "object"
-                              ? JSON.stringify(v)
-                              : String(v)}
-                          </td>
-                        );
-                      })}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <ResultsTable result={result} />
           </Content>
         </Card>
       )}
