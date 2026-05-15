@@ -142,11 +142,14 @@ function customPropertyToField(prop: GeotabCustomProperty): FieldDefinition {
     source: "Device",
     category: "Custom Properties",
     get: (d) => {
-      const list = d.customProperties ?? d.customParameters ?? [];
+      // Geotab returns custom property values inline on each Device as
+      // device.propertyValues = [{ value, property: { name } }, ...].
+      // Match by property.name since the ref shape doesn't always include id.
+      const list = d.propertyValues ?? [];
       for (const entry of list) {
+        const refName = entry.property?.name;
         const refId = entry.property?.id;
-        const refName = entry.property?.name ?? entry.name;
-        if (refId === prop.id || (refName && prop.name && refName === prop.name)) {
+        if ((refName && prop.name && refName === prop.name) || refId === prop.id) {
           const v = entry.value;
           if (v == null) return "";
           if (typeof v === "boolean") return v ? "Yes" : "No";
@@ -306,7 +309,7 @@ export default function App({ api, pageState }: AppProps) {
         <div>
           <h1 style={{ margin: 0, color: COLORS.navy, fontSize: 22 }}>Advanced Report Builder</h1>
           <p style={{ margin: "4px 0 0", color: "#5b6976", fontSize: 12 }}>
-            v2.0 · Phase 2D side-by-side + custom properties
+            v2.0 · Phase 2D.1 custom properties via propertyValues
           </p>
         </div>
         <div style={{ display: "flex", gap: 8 }}>
@@ -411,18 +414,8 @@ export default function App({ api, pageState }: AppProps) {
         )}
       </div>
 
-      {/* Side-by-side workspace — Columns left, Trend + Results right.
-          When no result exists, Columns takes full width via single-column grid. */}
-      <div
-        className="arb-workspace"
-        style={{
-          display: "grid",
-          gridTemplateColumns: result ? "minmax(380px, 1fr) minmax(520px, 1.6fr)" : "1fr",
-          gap: 16,
-          alignItems: "start",
-        }}
-      >
-        <Card title="Columns" fullWidth>
+      {/* Field selection — drag-and-drop palette + drop zone */}
+      <Card title="Columns" fullWidth>
         <Content>
           <DragDropFieldPicker
             availableFields={getOptionalFields()}
@@ -433,7 +426,6 @@ export default function App({ api, pageState }: AppProps) {
         </Content>
       </Card>
 
-        <div style={{ display: "flex", flexDirection: "column", gap: 16, minWidth: 0 }}>
       {/* Trend chart — only when sub-periods are active. Renders nothing
           otherwise so the layout stays clean. */}
       {result && result.buckets && result.buckets.length > 0 && (
@@ -457,9 +449,6 @@ export default function App({ api, pageState }: AppProps) {
           </Content>
         </Card>
       )}
-
-        </div>
-      </div>
 
       <div style={{ fontSize: 11, color: "#97a3b0", marginTop: 8 }}>
         Build: {import.meta.env.MODE} · API: {insideMyGeotab ? "connected" : "not connected"} ·
