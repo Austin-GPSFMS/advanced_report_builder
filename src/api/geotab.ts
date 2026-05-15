@@ -126,31 +126,81 @@ export async function fetchCustomProperties(api: GeotabApi): Promise<GeotabCusto
     console.warn("[ARB] Get<CustomProperty> failed; falling back to device-derived:", err);
   }
 
-  // Strategy 2: derive from device.propertyValues.
+  // Strategy 2: list device ids in bulk, then fetch ONE full device by id —
+  // Geotab strips nested arrays (propertyValues, customParameters, etc.) from
+  // bulk Get<Device> results, but returns the full record for single-id fetches.
+  // We then scan that single device for any field that looks like a property-
+  // value array under several known names.
   try {
-    interface DeviceLite {
-      propertyValues?: Array<{ property?: { id?: string; name?: string } }>;
+    interface NestedEntry {
+      property?: { id?: string; name?: string };
+      name?: string;
+      value?: unknown;
     }
-    const devices = await apiCall<DeviceLite[]>(api, "Get", {
+    interface DeviceFull {
+      id: string;
+      [k: string]: unknown;
+    }
+
+    const idsOnly = await apiCall<Array<{ id: string }>>(api, "Get", {
       typeName: "Device",
-      resultsLimit: 1000,
+      resultsLimit: 50,
     });
+    if (!idsOnly.length) {
+      console.warn("[ARB] No devices visible — cannot derive custom properties.");
+      return [];
+    }
+
+    // Sample up to 5 devices for property-name discovery. Geotab DBs can have
+    // different custom properties applied to different vehicles.
+    const sampleIds = idsOnly.slice(0, 5).map((d) => d.id);
+    const fulls: DeviceFull[] = [];
+    for (const id of sampleIds) {
+      try {
+        const arr = await apiCall<DeviceFull[]>(api, "Get", {
+          typeName: "Device",
+          search: { id },
+        });
+        if (arr && arr[0]) fulls.push(arr[0]);
+      } catch (e) {
+        console.warn("[ARB] Single-device fetch failed for", id, e);
+      }
+    }
+    if (!fulls.length) {
+      console.warn("[ARB] No full device records came back.");
+      return [];
+    }
+
+    // Diagnostic: show what we got so we know which field holds the values.
+    console.log("[ARB] Sample device keys:", Object.keys(fulls[0]));
+
+    const fieldsToInspect = [
+      "propertyValues",
+      "customProperties",
+      "customParameters",
+      "customDeviceProperties",
+    ];
+
     const byKey = new Map<string, GeotabCustomProperty>();
-    for (const d of devices) {
-      const pvs = d.propertyValues ?? [];
-      for (const pv of pvs) {
-        const id = pv.property?.id ?? "";
-        const name = pv.property?.name ?? "";
-        // Key by id when present, otherwise by name; skip entries without either.
-        const key = id || name;
-        if (!key) continue;
-        if (!byKey.has(key)) {
-          byKey.set(key, { id: id || name, name });
+    for (const dev of fulls) {
+      for (const field of fieldsToInspect) {
+        const raw = dev[field];
+        if (!Array.isArray(raw)) continue;
+        for (const entry of raw as NestedEntry[]) {
+          const id = entry.property?.id ?? "";
+          const name = entry.property?.name ?? entry.name ?? "";
+          const key = id || name;
+          if (!key) continue;
+          if (!byKey.has(key)) byKey.set(key, { id: id || name, name });
+        }
+        if (byKey.size > 0) {
+          console.log("[ARB] Found custom properties under field:", field);
         }
       }
     }
+
     const list = sortByName(Array.from(byKey.values()));
-    console.log("[ARB] Derived", list.length, "custom properties from device.propertyValues");
+    console.log("[ARB] Derived", list.length, "custom properties from sampled devices.");
     return list;
   } catch (err) {
     console.warn("[ARB] Device-derived custom property fallback failed:", err);

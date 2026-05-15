@@ -309,7 +309,7 @@ export default function App({ api, pageState }: AppProps) {
         <div>
           <h1 style={{ margin: 0, color: COLORS.navy, fontSize: 22 }}>Advanced Report Builder</h1>
           <p style={{ margin: "4px 0 0", color: "#5b6976", fontSize: 12 }}>
-            v2.0 · Phase 2D.2 custom properties with device fallback
+            v2.0 · Phase 2D.3 single-device probe + multi-field scan
           </p>
         </div>
         <div style={{ display: "flex", gap: 8 }}>
