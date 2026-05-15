@@ -61,6 +61,31 @@ export async function fetchGroups(api: GeotabApi): Promise<Map<string, GeotabGro
   return new Map(groups.map((g) => [g.id, g]));
 }
 
+/** A single Geotab Rule — only fields we surface in the report builder. */
+export interface GeotabRule {
+  id: string;
+  name?: string;
+  isBuiltIn?: boolean;
+  comment?: string;
+}
+
+/**
+ * Fetch every Rule (built-in + customer-defined). Used by Phase 2B.5 to
+ * surface a per-rule field card in the Exception Rules palette so reports
+ * can include exception counts for any rule without code changes.
+ */
+export async function fetchRules(api: GeotabApi): Promise<GeotabRule[]> {
+  const rules = await apiCall<GeotabRule[]>(api, "Get", {
+    typeName: "Rule",
+    resultsLimit: 5000,
+  });
+  return rules.slice().sort((a, b) => {
+    const an = (a.name ?? a.id).toLowerCase();
+    const bn = (b.name ?? b.id).toLowerCase();
+    return an.localeCompare(bn);
+  });
+}
+
 /** Fetch devices in any of the given groups. Optionally drops archived devices. */
 export async function fetchDevices(
   api: GeotabApi,

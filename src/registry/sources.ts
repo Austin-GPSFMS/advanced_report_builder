@@ -18,7 +18,7 @@ import type {
   SourceName,
 } from "../types";
 import { apiCall } from "../api/geotab";
-import { FIELD_REGISTRY } from "./fields";
+import { getAllFields } from "./fields";
 
 export type SourceMap = Map<string, unknown>;
 
@@ -26,10 +26,10 @@ interface SourceDef {
   fetch: (api: GeotabApi, ctx: BuildContext) => Promise<SourceMap>;
 }
 
-/** Returns the FIELD_REGISTRY entries that belong to a given source AND are active in this build. */
+/** Field entries (static + dynamic) for the given source that are active in this build. */
 function activeFieldsForSource(ctx: BuildContext, source: SourceName): FieldDefinition[] {
   const ids = ctx.activeFieldIds ?? [];
-  return FIELD_REGISTRY.filter((f) => f.source === source && ids.includes(f.id));
+  return getAllFields().filter((f) => f.source === source && ids.includes(f.id));
 }
 
 function inDeviceFilter(ctx: BuildContext, deviceId: string): boolean {

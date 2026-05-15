@@ -281,14 +281,37 @@ export const FIELD_REGISTRY: FieldDefinition[] = [
   },
 ];
 
+/**
+ * Dynamically-registered fields (e.g. one per Rule in 2B.5). These are
+ * appended after the static FIELD_REGISTRY so reports can pull data for
+ * any custom rule without code changes. App.tsx calls setDynamicFields()
+ * after Get<Rule> resolves.
+ */
+let DYNAMIC_FIELDS: FieldDefinition[] = [];
+
+export function setDynamicFields(fields: FieldDefinition[]): void {
+  DYNAMIC_FIELDS = fields;
+}
+
+export function getDynamicFields(): FieldDefinition[] {
+  return DYNAMIC_FIELDS;
+}
+
+/** Static + dynamic, in that order. Use this everywhere instead of FIELD_REGISTRY. */
+export function getAllFields(): FieldDefinition[] {
+  return DYNAMIC_FIELDS.length === 0
+    ? FIELD_REGISTRY
+    : [...FIELD_REGISTRY, ...DYNAMIC_FIELDS];
+}
+
 export function getRequiredFields(): FieldDefinition[] {
-  return FIELD_REGISTRY.filter((f) => f.required);
+  return getAllFields().filter((f) => f.required);
 }
 
 export function getOptionalFields(): FieldDefinition[] {
-  return FIELD_REGISTRY.filter((f) => !f.required);
+  return getAllFields().filter((f) => !f.required);
 }
 
 export function lookupField(id: string): FieldDefinition | undefined {
-  return FIELD_REGISTRY.find((f) => f.id === id);
+  return getAllFields().find((f) => f.id === id);
 }

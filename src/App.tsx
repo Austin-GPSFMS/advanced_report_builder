@@ -1,5 +1,5 @@
 /**
- * Phase 2B.4.3 App — native MyGeotab toolbar pattern.
+ * Phase 2B.5 App — native toolbar + dynamic Rule loading.
  *
  * No Filters card, no labels above each control. Group / Date range /
  * Sub-period / Run by / Archived sit in one compact horizontal row
@@ -46,8 +46,9 @@ import type {
   GeotabPageState,
   ReportResult,
 } from "./types";
-import { fetchGroups, friendlyError } from "./api/geotab";
-import { FIELD_REGISTRY, getOptionalFields, getRequiredFields } from "./registry/fields";
+import { fetchGroups, fetchRules, friendlyError, type GeotabRule } from "./api/geotab";
+import type { FieldDefinition } from "./types";
+import { getAllFields, getOptionalFields, getRequiredFields, setDynamicFields } from "./registry/fields";
 import { computeBuckets, type SubPeriod } from "./utils/dates";
 import { buildReport } from "./utils/build";
 import { GroupFilterPicker } from "./components/GroupFilterPicker";
@@ -92,6 +93,31 @@ const dateRangeOptions = [
   GET_LAST_THIRTY_DAYS_OPTION(),
 ];
 
+/**
+ * Build a FieldDefinition from a Geotab Rule. Each rule becomes a draggable
+ * card under "Exception Rules" with an exception-count cell value. The field
+ * id is prefixed (`rule:<id>`) so it can never collide with a static field.
+ */
+function ruleToField(rule: GeotabRule): FieldDefinition {
+  const fieldId = `rule:${rule.id}`;
+  const label = rule.name && rule.name.length > 0 ? rule.name : rule.id;
+  return {
+    id: fieldId,
+    label,
+    source: "ExceptionEvent",
+    category: "Exception Rules",
+    needsDateRange: true,
+    ruleId: rule.id,
+    formatBucket: (v: number) => String(v),
+    get: (d, ctx) => {
+      const rec = (ctx.sources?.ExceptionEvent?.get(d.id) ?? null) as
+        | Record<string, number>
+        | null;
+      return rec && rec[fieldId] != null ? String(rec[fieldId]) : "0";
+    },
+  };
+}
+
 function defaultDateRange(): IDateRangeValue {
   const last7 = GET_LAST_SEVEN_DAYS_OPTION();
   const range = last7.getRange();
@@ -105,6 +131,10 @@ export default function App({ api, pageState }: AppProps) {
   const [groupsById, setGroupsById] = useState<Map<string, GeotabGroup>>(new Map());
   const [groupsLoaded, setGroupsLoaded] = useState(false);
   const [groupsErr, setGroupsErr] = useState<string | null>(null);
+
+  // --- Rules (loaded once, surfaced as draggable Exception Rules fields) ---
+  const [rulesLoaded, setRulesLoaded] = useState(false);
+  const [, setRulesCount] = useState(0);
 
   // --- Toolbar state ---
   const [selectedGroupIds, setSelectedGroupIds] = useState<string[]>(["GroupCompanyId"]);
@@ -133,6 +163,20 @@ export default function App({ api, pageState }: AppProps) {
         setGroupsLoaded(true);
       })
       .catch((err) => setGroupsErr(friendlyError(err)));
+  }, [api]);
+
+  useEffect(() => {
+    if (!api) return;
+    fetchRules(api)
+      .then((rules) => {
+        setDynamicFields(rules.map(ruleToField));
+        setRulesCount(rules.length);
+        setRulesLoaded(true);
+      })
+      .catch((err) => {
+        console.error("[ARB] Failed to load rules:", err);
+        setRulesLoaded(true); // don't block the picker forever
+      });
   }, [api]);
 
   async function onBuild() {
@@ -184,7 +228,7 @@ export default function App({ api, pageState }: AppProps) {
         <div>
           <h1 style={{ margin: 0, color: COLORS.navy, fontSize: 22 }}>Advanced Report Builder</h1>
           <p style={{ margin: "4px 0 0", color: "#5b6976", fontSize: 12 }}>
-            v2.0 · Phase 2B.4.3 native toolbar
+            v2.0 · Phase 2B.5 dynamic rules
           </p>
         </div>
         <Button
@@ -300,7 +344,7 @@ export default function App({ api, pageState }: AppProps) {
       <div style={{ fontSize: 11, color: "#97a3b0", marginTop: 8 }}>
         Build: {import.meta.env.MODE} · API: {insideMyGeotab ? "connected" : "not connected"} ·
         PageState: {pageState ? "received" : "none"} · Groups loaded:{" "}
-        {groupsLoaded ? `${groupsById.size}` : "no"} · Fields registered: {FIELD_REGISTRY.length}
+        {groupsLoaded ? `${groupsById.size}` : "no"} · Rules: {rulesLoaded ? "loaded" : "loading"} · Fields registered: {getAllFields().length}
       </div>
     </div>
   );
