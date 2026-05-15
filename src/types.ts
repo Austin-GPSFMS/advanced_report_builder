@@ -114,4 +114,6 @@ export interface ReportResult {
   rows: ReportRow[];
   individualRows: ReportRow[];
   runBy: "individual" | "group";
+  /** Bucket axis when sub-periods are active. Null when subPeriod === "none". */
+  buckets: Bucket[] | null;
 }

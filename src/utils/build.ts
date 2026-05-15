@@ -116,6 +116,7 @@ function joinAndRender(ctx: BuildContext, fieldIds: string[]): ReportResult {
     rows: displayRows,
     individualRows,
     runBy: ctx.runBy,
+    buckets: ctx.buckets,
   };
 }
 

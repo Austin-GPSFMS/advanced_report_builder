@@ -1,5 +1,5 @@
 /**
- * Phase 2C.2 App — native toolbar + dynamic Rule loading + ExcelJS export.
+ * Phase 2C.1+2 App — toolbar + dynamic rules + LineChart + Excel export.
  *
  * No Filters card, no labels above each control. Group / Date range /
  * Sub-period / Run by / Archived sit in one compact horizontal row
@@ -55,6 +55,7 @@ import { exportToXlsx } from "./utils/export";
 import { GroupFilterPicker } from "./components/GroupFilterPicker";
 import { DragDropFieldPicker } from "./components/DragDropFieldPicker";
 import { ResultsTable } from "./components/ResultsTable";
+import { ResultsChart } from "./components/ResultsChart";
 
 interface AppProps {
   api: GeotabApi | null;
@@ -260,7 +261,7 @@ export default function App({ api, pageState }: AppProps) {
         <div>
           <h1 style={{ margin: 0, color: COLORS.navy, fontSize: 22 }}>Advanced Report Builder</h1>
           <p style={{ margin: "4px 0 0", color: "#5b6976", fontSize: 12 }}>
-            v2.0 · Phase 2C.2 Excel export
+            v2.0 · Phase 2C.1+2 charts + Excel export
           </p>
         </div>
         <div style={{ display: "flex", gap: 8 }}>
@@ -370,6 +371,16 @@ export default function App({ api, pageState }: AppProps) {
           />
         </Content>
       </Card>
+
+      {/* Trend chart — only when sub-periods are active. Renders nothing
+          otherwise so the layout stays clean. */}
+      {result && result.buckets && result.buckets.length > 0 && (
+        <Card title="Trend" fullWidth>
+          <Content>
+            <ResultsChart result={result} />
+          </Content>
+        </Card>
+      )}
 
       {/* Results — Zenith Table (sortable, sticky header, resizable, column-visibility menu) */}
       {result && (

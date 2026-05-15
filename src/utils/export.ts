@@ -166,11 +166,15 @@ export async function exportToXlsx({
   wb.creator = "GPSFMS Advanced Report Builder";
   wb.created = new Date();
 
-  writeMetadataSheet(wb, ctx, selectedFieldIds, result, groupNamesById);
+  // Order matters: the first sheet is the one Excel opens to. Put the
+  // user's data first, then the metadata / individual breakdown.
   writeDataSheet(wb, "Results", result.columns, result.rows);
   if (ctx.runBy === "group") {
     writeDataSheet(wb, "Individual Data", result.columns, result.individualRows);
   }
+  writeMetadataSheet(wb, ctx, selectedFieldIds, result, groupNamesById);
+  // Belt-and-suspenders: also pin the active tab to "Results" via workbook views.
+  wb.views = [{ activeTab: 0, firstSheet: 0, visibility: "visible", x: 0, y: 0, width: 12000, height: 8000 }];
 
   const buf = await wb.xlsx.writeBuffer();
   const blob = new Blob([buf], {
