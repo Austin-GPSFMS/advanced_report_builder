@@ -20,6 +20,7 @@ import { fetchGroups, friendlyError } from "./api/geotab";
 import { FIELD_REGISTRY, getOptionalFields, getRequiredFields } from "./registry/fields";
 import { applyDatePreset, computeBuckets, isoDateOnly, parseDate, type DatePreset, type SubPeriod } from "./utils/dates";
 import { buildReport } from "./utils/build";
+import { GroupFilterPicker } from "./components/GroupFilterPicker";
 
 interface AppProps {
   api: GeotabApi | null;
@@ -99,7 +100,7 @@ export default function App({ api, pageState }: AppProps) {
   const [groupsErr, setGroupsErr] = useState<string | null>(null);
 
   // --- Filter bar state ---
-  const [selectedGroupId, setSelectedGroupId] = useState<string>("GroupCompanyId");
+  const [selectedGroupIds, setSelectedGroupIds] = useState<string[]>(["GroupCompanyId"]);
   const [preset, setPreset] = useState<DatePreset>("7d");
   const initial7d = applyDatePreset("7d");
   const [fromDateStr, setFromDateStr] = useState(initial7d ? isoDateOnly(initial7d.from) : "");
@@ -146,15 +147,6 @@ export default function App({ api, pageState }: AppProps) {
     });
   }
 
-  const groupOptions = useMemo(() => {
-    const list = Array.from(groupsById.values()).sort((a, b) => {
-      if (a.id === "GroupCompanyId") return -1;
-      if (b.id === "GroupCompanyId") return 1;
-      return (a.name ?? "").localeCompare(b.name ?? "");
-    });
-    return list;
-  }, [groupsById]);
-
   async function onBuild() {
     if (!api) return;
     setIsBuilding(true);
@@ -165,7 +157,7 @@ export default function App({ api, pageState }: AppProps) {
       const toDate = parseDate(toDateStr);
       const buckets = computeBuckets(fromDate, toDate, subPeriod);
       const ctx: BuildContext = {
-        groupIds: [selectedGroupId],
+        groupIds: selectedGroupIds.length > 0 ? selectedGroupIds : ["GroupCompanyId"],
         fromDate,
         toDate,
         deviceIds: null,
@@ -226,14 +218,18 @@ export default function App({ api, pageState }: AppProps) {
       {/* Filter bar */}
       <section style={card}>
         <div style={{ display: "flex", flexWrap: "wrap", gap: 16 }}>
-          <div>
+          <div style={{ minWidth: 220 }}>
             <label style={labelStyle}>Group</label>
-            <select style={inputStyle} value={selectedGroupId} onChange={(e) => setSelectedGroupId(e.target.value)} disabled={!groupsLoaded}>
-              {!groupsLoaded && <option>Loading…</option>}
-              {groupOptions.map((g) => (
-                <option key={g.id} value={g.id}>{g.name ?? g.id}</option>
-              ))}
-            </select>
+            {groupsLoaded ? (
+              <GroupFilterPicker
+                groupsById={groupsById}
+                initialGroupIds={selectedGroupIds}
+                onChange={setSelectedGroupIds}
+                onError={(e) => setBuildErr(friendlyError(e))}
+              />
+            ) : (
+              <div style={{ ...inputStyle, color: "#6b7785", fontStyle: "italic" }}>Loading groups…</div>
+            )}
           </div>
           <div>
             <label style={labelStyle}>Quick range</label>
