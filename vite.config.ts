@@ -4,14 +4,18 @@ import react from "@vitejs/plugin-react";
 /**
  * Vite config for the GPSFMS Advanced Report Builder MyGeotab add-in.
  *
- * The add-in is hosted at:
+ * Hosted at:
  *   https://austin-gpsfms.github.io/advanced_report_builder/dist/index.html
  *
- * GitHub Pages serves from the repo root, so `base` points at /repo/dist/.
- * All asset URLs in the built HTML are rewritten relative to that base.
+ * `base: "./"` produces RELATIVE asset paths in the built index.html
+ * (`<script src="./assets/index-XXX.js">`). This is the safe choice for
+ * MyGeotab add-ins because MyGeotab loads the add-in HTML inside an iframe
+ * with its own URL handling and was duplicating absolute paths like
+ * `/advanced_report_builder/dist/...` into the malformed `//advanced_report_builder/dist//advanced_report_builder/dist/...`.
+ * Relative paths resolve naturally against whatever the document's URL is.
  */
 export default defineConfig({
-  base: "/advanced_report_builder/dist/",
+  base: "./",
   plugins: [react()],
   build: {
     outDir: "dist",
