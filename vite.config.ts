@@ -7,15 +7,19 @@ import react from "@vitejs/plugin-react";
  * Hosted at:
  *   https://austin-gpsfms.github.io/advanced_report_builder/dist/index.html
  *
- * `base: "./"` produces RELATIVE asset paths in the built index.html
- * (`<script src="./assets/index-XXX.js">`). This is the safe choice for
- * MyGeotab add-ins because MyGeotab loads the add-in HTML inside an iframe
- * with its own URL handling and was duplicating absolute paths like
- * `/advanced_report_builder/dist/...` into the malformed `//advanced_report_builder/dist//advanced_report_builder/dist/...`.
- * Relative paths resolve naturally against whatever the document's URL is.
+ * `base: ""` produces CLEAN relative asset paths in the built index.html
+ * (`<script src="assets/index-XXX.js">` — no leading `/`, no `./`). This
+ * is the safest choice for MyGeotab add-ins because:
+ *   - Absolute paths starting with `/` get duplicated by MyGeotab's iframe
+ *     loader, producing `/advanced_report_builder/dist//advanced_report_builder/dist/...`
+ *   - `./` paths can survive into the request URL as literal `/./` segments
+ *     that some servers (including GitHub Pages) treat as separate path
+ *     segments and 404 on.
+ * Bare relative paths resolve naturally against the document URL with no
+ * artifacts in the request URL.
  */
 export default defineConfig({
-  base: "./",
+  base: "",
   plugins: [react()],
   build: {
     outDir: "dist",
