@@ -1,0 +1,117 @@
+/**
+ * Domain types for the Advanced Report Builder.
+ *
+ * The MyGeotab API surface is intentionally typed loosely (`any`-ish) here
+ * because the SDK doesn't ship official TypeScript types for add-in callbacks.
+ * We narrow shapes at the boundaries (in api/geotab.ts) instead.
+ */
+
+export interface GeotabApi {
+  call: (
+    method: string,
+    params: unknown,
+    success: (result: unknown) => void,
+    failure: (err: unknown) => void
+  ) => void;
+}
+
+export interface GeotabPageState {
+  getGroupFilter?: (cb: (groups: unknown) => void) => void;
+  setGroupFilter?: (groups: unknown) => void;
+  getState?: (cb: (state: unknown) => void) => void;
+  setState?: (state: unknown) => void;
+  translate?: (key: string) => string;
+}
+
+export type SourceName =
+  | "Device"
+  | "DeviceStatusInfo"
+  | "StatusData"
+  | "ExceptionEvent"
+  | "Trip";
+
+export interface FieldDefinition {
+  id: string;
+  label: string;
+  source: SourceName;
+  category: string;
+  /** True when the field requires a From/To date range to be meaningful. */
+  needsDateRange?: boolean;
+  /** True for the locked Device ID / Geotab Serial keys. */
+  required?: boolean;
+  /** Diagnostic ID for StatusData-backed fields (e.g. DiagnosticOdometerId). */
+  diagnostic?: string;
+  /** Rule ID for ExceptionEvent-backed fields. */
+  ruleId?: string;
+  /** Conversion factor for raw API units (e.g. meters -> miles). */
+  unitFactor?: number;
+  /** How a per-bucket aggregated value should be formatted. */
+  formatBucket?: (v: number) => string;
+  /** Custom getter that pulls the field value from a joined row context. */
+  get?: (device: GeotabDevice, ctx: BuildContext) => string | number | null;
+}
+
+export interface GeotabDevice {
+  id: string;
+  name?: string;
+  serialNumber?: string;
+  vehicleIdentificationNumber?: string;
+  licensePlate?: string;
+  licenseState?: string;
+  comment?: string;
+  activeFrom?: string;
+  activeTo?: string;
+  deviceType?: string;
+  productId?: string;
+  engineDescription?: string;
+  engineVehicleIdentificationNumber?: string;
+  engineType?: string;
+  timeZoneId?: string;
+  groups?: Array<{ id: string }>;
+}
+
+export interface GeotabGroup {
+  id: string;
+  name?: string;
+  children?: Array<{ id: string }>;
+}
+
+export interface BuildContext {
+  groupIds: string[];
+  fromDate: Date | null;
+  toDate: Date | null;
+  deviceIds: string[] | null;
+  includeArchived: boolean;
+  subPeriod: "none" | "daily" | "weekly" | "monthly";
+  buckets: Bucket[] | null;
+  runBy: "individual" | "group";
+  groupsById: Map<string, GeotabGroup>;
+  activeFieldIds?: string[];
+  sources?: Record<string, Map<string, unknown>>;
+}
+
+export interface Bucket {
+  start: Date;
+  end: Date;
+  label: string;
+}
+
+export interface ReportColumn {
+  fieldId: string;
+  bucketIdx: number | null;
+  label: string;
+  key: string;
+}
+
+export interface ReportRow {
+  _deviceId: string;
+  _parentGroup?: string;
+  [key: string]: unknown;
+}
+
+export interface ReportResult {
+  columns: ReportColumn[];
+  rows: ReportRow[];
+  individualRows: ReportRow[];
+  runBy: "individual" | "group";
+}

@@ -1,0 +1,54 @@
+/**
+ * Global styles for the Advanced Report Builder.
+ *
+ * Zenith ships its own design tokens (colors, spacing, typography, fonts) via
+ * @geotab/zenith/dist/index.css. Anything below is GPSFMS-specific layering on
+ * top of that base — page chrome, the drag-drop palette, the empty-state hints.
+ */
+
+@import "@geotab/zenith/dist/index.css";
+
+:root {
+  /* GPSFMS brand layered on top of Zenith. Use these only where Zenith doesn't
+     already provide an equivalent token. Lean on Zenith primitives first. */
+  --gpsfms-navy: #25477B;
+  --gpsfms-dark: #1C2B39;
+  --gpsfms-blue: #0084C2;
+  --gpsfms-blue-soft: #E5F1F8;
+  --gpsfms-light: #F4F4F4;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+}
+
+#root {
+  display: flex;
+  flex-direction: column;
+}
+
+.arb-page {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-height: 100vh;
+  box-sizing: border-box;
+}
+
+.arb-page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.arb-banner-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}

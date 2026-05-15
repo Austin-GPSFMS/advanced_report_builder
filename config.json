@@ -1,0 +1,15 @@
+{
+  "name": "Advanced Report Builder",
+  "supportEmail": "support@gpsfms.com",
+  "version": "2.0.0",
+  "items": [
+    {
+      "url": "https://austin-gpsfms.github.io/advanced_report_builder/dist/index.html",
+      "path": "ActivityLink/",
+      "menuName": {
+        "en": "Advanced Report Builder"
+      }
+    }
+  ],
+  "isSigned": false
+}
