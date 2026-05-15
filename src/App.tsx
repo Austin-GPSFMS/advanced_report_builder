@@ -46,7 +46,14 @@ import type {
   GeotabPageState,
   ReportResult,
 } from "./types";
-import { fetchGroups, fetchRules, friendlyError, type GeotabRule } from "./api/geotab";
+import {
+  fetchGroups,
+  fetchRules,
+  fetchCustomProperties,
+  friendlyError,
+  type GeotabRule,
+  type GeotabCustomProperty,
+} from "./api/geotab";
 import type { FieldDefinition } from "./types";
 import { getAllFields, getOptionalFields, getRequiredFields, setDynamicFields } from "./registry/fields";
 import { computeBuckets, type SubPeriod } from "./utils/dates";
@@ -120,6 +127,40 @@ function ruleToField(rule: GeotabRule): FieldDefinition {
   };
 }
 
+/**
+ * Build a FieldDefinition from a Geotab CustomProperty. Each property
+ * becomes a draggable card under "Custom Properties". The get function
+ * looks up the value on device.customProperties or device.customParameters
+ * by matching property id or name (Geotab's array shape varies).
+ */
+function customPropertyToField(prop: GeotabCustomProperty): FieldDefinition {
+  const fieldId = `customProp:${prop.id}`;
+  const label = prop.name && prop.name.length > 0 ? prop.name : prop.id;
+  return {
+    id: fieldId,
+    label,
+    source: "Device",
+    category: "Custom Properties",
+    get: (d) => {
+      const list = d.customProperties ?? d.customParameters ?? [];
+      for (const entry of list) {
+        const refId = entry.property?.id;
+        const refName = entry.property?.name ?? entry.name;
+        if (refId === prop.id || (refName && prop.name && refName === prop.name)) {
+          const v = entry.value;
+          if (v == null) return "";
+          if (typeof v === "boolean") return v ? "Yes" : "No";
+          if (typeof v === "object") {
+            try { return JSON.stringify(v); } catch { return String(v); }
+          }
+          return String(v);
+        }
+      }
+      return "";
+    },
+  };
+}
+
 function defaultDateRange(): IDateRangeValue {
   const last7 = GET_LAST_SEVEN_DAYS_OPTION();
   const range = last7.getRange();
@@ -170,15 +211,19 @@ export default function App({ api, pageState }: AppProps) {
 
   useEffect(() => {
     if (!api) return;
-    fetchRules(api)
-      .then((rules) => {
-        setDynamicFields(rules.map(ruleToField));
+    // Load rules + custom-property definitions in parallel, then register
+    // the combined dynamic field set in one go.
+    Promise.all([fetchRules(api), fetchCustomProperties(api)])
+      .then(([rules, customProps]) => {
+        const ruleFields = rules.map(ruleToField);
+        const cpFields = customProps.map(customPropertyToField);
+        setDynamicFields([...ruleFields, ...cpFields]);
         setRulesCount(rules.length);
         setRulesLoaded(true);
       })
       .catch((err) => {
-        console.error("[ARB] Failed to load rules:", err);
-        setRulesLoaded(true); // don't block the picker forever
+        console.error("[ARB] Failed to load rules / custom properties:", err);
+        setRulesLoaded(true);
       });
   }, [api]);
 
@@ -261,7 +306,7 @@ export default function App({ api, pageState }: AppProps) {
         <div>
           <h1 style={{ margin: 0, color: COLORS.navy, fontSize: 22 }}>Advanced Report Builder</h1>
           <p style={{ margin: "4px 0 0", color: "#5b6976", fontSize: 12 }}>
-            v2.0 · Phase 2C.1+2 charts + Excel export
+            v2.0 · Phase 2D side-by-side + custom properties
           </p>
         </div>
         <div style={{ display: "flex", gap: 8 }}>
@@ -317,6 +362,8 @@ export default function App({ api, pageState }: AppProps) {
           errorHandler={(e) => console.error("[ARB] Sub-period:", e)}
           forceSelection
           multiselect={false}
+          showSelection
+          showCounterPill={false}
           placeholder="Sub-period"
         />
         <Dropdown
@@ -326,6 +373,8 @@ export default function App({ api, pageState }: AppProps) {
           errorHandler={(e) => console.error("[ARB] Run by:", e)}
           forceSelection
           multiselect={false}
+          showSelection
+          showCounterPill={false}
           placeholder="Run by"
         />
         <Dropdown
@@ -338,6 +387,8 @@ export default function App({ api, pageState }: AppProps) {
           errorHandler={(e) => console.error("[ARB] Archived:", e)}
           forceSelection
           multiselect={false}
+          showSelection
+          showCounterPill={false}
           placeholder="Archived"
         />
       </div>
@@ -360,8 +411,18 @@ export default function App({ api, pageState }: AppProps) {
         )}
       </div>
 
-      {/* Field selection — drag-and-drop palette + drop zone */}
-      <Card title="Columns" fullWidth>
+      {/* Side-by-side workspace — Columns left, Trend + Results right.
+          When no result exists, Columns takes full width via single-column grid. */}
+      <div
+        className="arb-workspace"
+        style={{
+          display: "grid",
+          gridTemplateColumns: result ? "minmax(380px, 1fr) minmax(520px, 1.6fr)" : "1fr",
+          gap: 16,
+          alignItems: "start",
+        }}
+      >
+        <Card title="Columns" fullWidth>
         <Content>
           <DragDropFieldPicker
             availableFields={getOptionalFields()}
@@ -372,6 +433,7 @@ export default function App({ api, pageState }: AppProps) {
         </Content>
       </Card>
 
+        <div style={{ display: "flex", flexDirection: "column", gap: 16, minWidth: 0 }}>
       {/* Trend chart — only when sub-periods are active. Renders nothing
           otherwise so the layout stays clean. */}
       {result && result.buckets && result.buckets.length > 0 && (
@@ -395,6 +457,9 @@ export default function App({ api, pageState }: AppProps) {
           </Content>
         </Card>
       )}
+
+        </div>
+      </div>
 
       <div style={{ fontSize: 11, color: "#97a3b0", marginTop: 8 }}>
         Build: {import.meta.env.MODE} · API: {insideMyGeotab ? "connected" : "not connected"} ·

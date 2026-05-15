@@ -86,6 +86,30 @@ export async function fetchRules(api: GeotabApi): Promise<GeotabRule[]> {
   });
 }
 
+export interface GeotabCustomProperty {
+  id: string;
+  name?: string;
+  description?: string;
+  dataType?: string;
+}
+
+export async function fetchCustomProperties(api: GeotabApi): Promise<GeotabCustomProperty[]> {
+  try {
+    const props = await apiCall<GeotabCustomProperty[]>(api, "Get", {
+      typeName: "CustomProperty",
+      resultsLimit: 5000,
+    });
+    return props.slice().sort((a, b) => {
+      const an = (a.name ?? a.id).toLowerCase();
+      const bn = (b.name ?? b.id).toLowerCase();
+      return an.localeCompare(bn);
+    });
+  } catch (err) {
+    console.warn("[ARB] fetchCustomProperties failed:", err);
+    return [];
+  }
+}
+
 /** Fetch devices in any of the given groups. Optionally drops archived devices. */
 export async function fetchDevices(
   api: GeotabApi,

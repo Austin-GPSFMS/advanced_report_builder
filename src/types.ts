@@ -68,6 +68,14 @@ export interface GeotabDevice {
   engineType?: string;
   timeZoneId?: string;
   groups?: Array<{ id: string }>;
+  customProperties?: CustomPropertyValue[];
+  customParameters?: CustomPropertyValue[];
+}
+
+export interface CustomPropertyValue {
+  property?: { id?: string; name?: string };
+  name?: string;
+  value?: unknown;
 }
 
 export interface GeotabGroup {
